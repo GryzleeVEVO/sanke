@@ -1,11 +1,15 @@
 package main
 
 import (
+	"math/rand"
+	"time"
+
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
 var winWidth, winHeight int32
 var stepTime, deltaTime float32
+var rng *rand.Rand
 
 const (
 	MapSize          = 20
@@ -71,10 +75,25 @@ func (s *SnakeSegment) Draw() {
 	}
 }
 
+// FRUIT
+
+type Fruit struct {
+	position Position
+}
+
+func (f *Fruit) Draw() {
+	rl.DrawRectangle(
+		int32(f.position.x*10),
+		int32(f.position.y*10),
+		10, 10,
+		rl.Red)
+}
+
 // GAME
 
 type Game struct {
 	snake     *SnakeSegment
+	fruit     Fruit
 	direction Direction
 	extend    bool
 }
@@ -84,9 +103,18 @@ func NewGame() *Game {
 		snake: &SnakeSegment{
 			Position{10, 10}, nil,
 		},
-
+		fruit:     Fruit{Position{0, 0}},
 		direction: Left,
 		extend:    false,
+	}
+
+	for {
+		game.fruit.position.x = int32(RandomInt(0, MapSize))
+		game.fruit.position.y = int32(RandomInt(0, MapSize))
+
+		if !game.snake.CollidesWith(game.fruit.position) {
+			break
+		}
 	}
 
 	return &game
@@ -130,12 +158,21 @@ func (g *Game) Update() {
 		break
 	}
 
-	if g.snake.position == next {
+	if g.snake.position == next || g.snake.CollidesWith(next) {
 		return
 	}
 
-	if g.snake.CollidesWith(next) {
-		return
+	if g.snake.CollidesWith(g.fruit.position) {
+		g.extend = true
+
+		for {
+			g.fruit.position.x = int32(RandomInt(0, MapSize))
+			g.fruit.position.y = int32(RandomInt(0, MapSize))
+
+			if !g.snake.CollidesWith(g.fruit.position) {
+				break
+			}
+		}
 	}
 
 	g.snake.Update(next, g.extend)
@@ -149,12 +186,14 @@ func (g *Game) Draw() {
 	rl.ClearBackground(rl.Black)
 	rl.DrawFPS(winWidth-120, 10)
 	g.snake.Draw()
+	g.fruit.Draw()
 	rl.EndDrawing()
 }
 
 // MAIN
 
 func main() {
+	rng = rand.New(rand.NewSource(time.Now().UnixNano()))
 	winWidth, winHeight = 800, 600
 
 	// rl.SetConfigFlags(rl.FlagWindowResizable)
@@ -185,12 +224,14 @@ func main() {
 	}
 }
 
+// Panic if condition is not true
 func Assert(cond bool, msg string) {
 	if !cond {
 		panic(msg)
 	}
 }
 
+// Clamp f to [lo, hi]
 func Clamp(f, lo, hi int32) int32 {
 	if f < lo {
 		return lo
@@ -199,4 +240,9 @@ func Clamp(f, lo, hi int32) int32 {
 		return hi
 	}
 	return f
+}
+
+// Get random integer between [min, max)
+func RandomInt(min, max int) int {
+	return rng.Intn(max-min) + min
 }
