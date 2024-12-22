@@ -4,9 +4,15 @@ import (
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
+var winWidth, winHeight int32
+var stepTime, deltaTime float32
+
 const (
-	MapSize = 20
+	MapSize          = 20
+	StepTime float32 = 0.1 // Time between state updates
 )
+
+// DIRECTION
 
 type Direction int
 
@@ -17,25 +23,21 @@ const (
 	Down
 )
 
+// POSITION
+
 type Position struct {
 	x, y int32
 }
 
+// SNAKESEGMENT
+
+// Segment of Snake. Implemented as a linked list
 type SnakeSegment struct {
 	position Position
 	next     *SnakeSegment
 }
 
 func (s *SnakeSegment) CollidesWith(position Position) bool {
-	// res := s.position != position
-	//
-	// fmt.Println(s.position, position, res)
-	//
-	// if res && s.next != nil {
-	// 	return s.next.CollidesWith(position)
-	// }
-	//
-	// return res
 	collides := s.position == position
 
 	if !collides && s.next != nil {
@@ -68,6 +70,8 @@ func (s *SnakeSegment) Draw() {
 		s.next.Draw()
 	}
 }
+
+// GAME
 
 type Game struct {
 	snake     *SnakeSegment
@@ -142,34 +146,41 @@ func (g *Game) Draw() {
 	Assert(g.snake != nil, "Snake not intialized")
 
 	rl.BeginDrawing()
-
 	rl.ClearBackground(rl.Black)
+	rl.DrawFPS(winWidth-120, 10)
 	g.snake.Draw()
-
 	rl.EndDrawing()
 }
 
+// MAIN
+
 func main() {
-	var winWidth, winHeight int
 	winWidth, winHeight = 800, 600
 
 	// rl.SetConfigFlags(rl.FlagWindowResizable)
 	rl.SetTraceLogLevel(rl.LogError)
 	rl.InitWindow(
-		int32(winWidth),
-		int32(winHeight),
+		winWidth,
+		winHeight,
 		"sanke",
 	)
 	defer rl.CloseWindow()
-	rl.SetTargetFPS(10)
+	// rl.SetTargetFPS(10)
 
 	game := NewGame()
+	stepTime = StepTime
 
 	for !rl.WindowShouldClose() {
-		winWidth, winHeight = rl.GetScreenWidth(), rl.GetScreenHeight()
-
+		winWidth, winHeight = int32(rl.GetScreenWidth()), int32(rl.GetScreenHeight())
+		deltaTime = rl.GetFrameTime()
 		game.Input()
-		game.Update()
+		stepTime += deltaTime
+
+		if stepTime >= StepTime {
+			stepTime = 0
+			game.Update()
+		}
+
 		game.Draw()
 	}
 }
@@ -179,6 +190,7 @@ func Assert(cond bool, msg string) {
 		panic(msg)
 	}
 }
+
 func Clamp(f, lo, hi int32) int32 {
 	if f < lo {
 		return lo
