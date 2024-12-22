@@ -5,14 +5,8 @@ import (
 )
 
 const (
-	MAP_SIZE = 20
+	MapSize = 20
 )
-
-func assert(cond bool, msg string) {
-	if !cond {
-		panic(msg)
-	}
-}
 
 type Direction int
 
@@ -32,6 +26,25 @@ type SnakeSegment struct {
 	next     *SnakeSegment
 }
 
+func (s *SnakeSegment) CollidesWith(position Position) bool {
+	// res := s.position != position
+	//
+	// fmt.Println(s.position, position, res)
+	//
+	// if res && s.next != nil {
+	// 	return s.next.CollidesWith(position)
+	// }
+	//
+	// return res
+	collides := s.position == position
+
+	if !collides && s.next != nil {
+		return s.next.CollidesWith(position)
+	}
+
+	return collides
+}
+
 func (s *SnakeSegment) Update(position Position, extend bool) {
 	prev := s.position
 	s.position = position
@@ -41,7 +54,6 @@ func (s *SnakeSegment) Update(position Position, extend bool) {
 	} else if s.next == nil && extend == true {
 		s.next = &SnakeSegment{prev, nil}
 	}
-
 }
 
 func (s *SnakeSegment) Draw() {
@@ -58,14 +70,14 @@ func (s *SnakeSegment) Draw() {
 }
 
 type Game struct {
-	snakeHead *SnakeSegment
+	snake     *SnakeSegment
 	direction Direction
 	extend    bool
 }
 
 func NewGame() *Game {
 	game := Game{
-		snakeHead: &SnakeSegment{
+		snake: &SnakeSegment{
 			Position{10, 10}, nil,
 		},
 
@@ -77,93 +89,102 @@ func NewGame() *Game {
 }
 
 func (g *Game) Input() {
-	if rl.IsKeyDown(rl.KeyRight) {
-		if g.direction != Left {
-			g.direction = Right
-		}
+	if rl.IsKeyDown(rl.KeyRight) && g.direction != Left {
+		g.direction = Right
 	}
-	if rl.IsKeyDown(rl.KeyLeft) {
-		if g.direction != Right {
-			g.direction = Left
-		}
+	if rl.IsKeyDown(rl.KeyLeft) && g.direction != Right {
+		g.direction = Left
 	}
-	if rl.IsKeyDown(rl.KeyDown) {
-		if g.direction != Up {
-			g.direction = Down
-		}
+	if rl.IsKeyDown(rl.KeyDown) && g.direction != Up {
+		g.direction = Down
 	}
-	if rl.IsKeyDown(rl.KeyUp) {
-		if g.direction != Down {
-			g.direction = Up
-		}
+	if rl.IsKeyDown(rl.KeyUp) && g.direction != Down {
+		g.direction = Up
 	}
-
 	if rl.IsKeyDown(rl.KeyA) {
 		g.extend = true
 	}
-
 }
 
 func (g *Game) Update() {
-	assert(g.snakeHead != nil, "Snake not intialized")
+	Assert(g.snake != nil, "Snake not intialized")
 
-	next := g.snakeHead.position
+	next := g.snake.position
 
 	switch g.direction {
 	case Right:
-		if next.x < MAP_SIZE-1 {
-			next.x += 1
-		}
+		next.x = Clamp(next.x+1, 0, MapSize-1)
 		break
 	case Left:
-		if next.x > 0 {
-			next.x -= 1
-		}
+		next.x = Clamp(next.x-1, 0, MapSize-1)
 		break
 	case Down:
-		if next.y < MAP_SIZE-1 {
-			next.y += 1
-		}
+		next.y = Clamp(next.y+1, 0, MapSize-1)
 		break
 	case Up:
-		if next.y > 0 {
-			next.y -= 1
-		}
+		next.y = Clamp(next.y-1, 0, MapSize-1)
 		break
 	}
 
-	if g.snakeHead.position != next {
-		g.snakeHead.Update(next, g.extend)
-		g.extend = false
+	if g.snake.position == next {
+		return
 	}
+
+	if g.snake.CollidesWith(next) {
+		return
+	}
+
+	g.snake.Update(next, g.extend)
+	g.extend = false
 }
 
 func (g *Game) Draw() {
-	assert(g.snakeHead != nil, "Snake not intialized")
+	Assert(g.snake != nil, "Snake not intialized")
 
 	rl.BeginDrawing()
 
 	rl.ClearBackground(rl.Black)
-	g.snakeHead.Draw()
+	g.snake.Draw()
 
 	rl.EndDrawing()
 }
 
 func main() {
+	var winWidth, winHeight int
+	winWidth, winHeight = 800, 600
+
+	// rl.SetConfigFlags(rl.FlagWindowResizable)
+	rl.SetTraceLogLevel(rl.LogError)
 	rl.InitWindow(
-		800,
-		600,
+		int32(winWidth),
+		int32(winHeight),
 		"sanke",
 	)
 	defer rl.CloseWindow()
-
 	rl.SetTargetFPS(10)
 
 	game := NewGame()
 
 	for !rl.WindowShouldClose() {
+		winWidth, winHeight = rl.GetScreenWidth(), rl.GetScreenHeight()
+
 		game.Input()
 		game.Update()
 		game.Draw()
 	}
+}
+
+func Assert(cond bool, msg string) {
+	if !cond {
+		panic(msg)
+	}
+}
+func Clamp(f, lo, hi int32) int32 {
+	if f < lo {
+		return lo
+	}
+	if f > hi {
+		return hi
+	}
+	return f
 }
