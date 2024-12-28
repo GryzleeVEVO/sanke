@@ -1,3 +1,12 @@
+/*
+	TODO:
+	- Fix bugs
+	- Fix draw
+	- Add menu
+	- Add win/lose state
+	- Add scoring system
+*/
+
 package main
 
 import (
@@ -13,7 +22,7 @@ var rng *rand.Rand
 
 const (
 	MapSize          = 20
-	StepTime float32 = 0.1 // Time between state updates
+	StepTime float32 = 0.5 // Time between state updates
 )
 
 // DIRECTION
@@ -62,11 +71,12 @@ func (s *SnakeSegment) Update(position Position, extend bool) {
 	}
 }
 
+// FIXME: Rectangles drawn instead of squares.
 func (s *SnakeSegment) Draw() {
 	rl.DrawRectangle(
-		int32(s.position.x*10),
-		int32(s.position.y*10),
-		10, 10,
+		int32(s.position.x*(winWidth/MapSize)),
+		int32(s.position.y*(winHeight/MapSize)),
+		winWidth/MapSize, winHeight/MapSize,
 		rl.LightGray,
 	)
 
@@ -81,16 +91,21 @@ type Fruit struct {
 	position Position
 }
 
+// FIXME: Rectangles drawn instead of squares.
 func (f *Fruit) Draw() {
 	rl.DrawRectangle(
-		int32(f.position.x*10),
-		int32(f.position.y*10),
-		10, 10,
+		int32(f.position.x*(winWidth/MapSize)),
+		int32(f.position.y*(winHeight/MapSize)),
+		winWidth/MapSize, winHeight/MapSize,
 		rl.Red)
 }
 
 // GAME
 
+// TODO: Add win/loss states
+// TODO: Add scoring system
+// TODO: Add main menu
+// TODO: Fancier in-game graphics. Nothing too complicated tho
 type Game struct {
 	snake     *SnakeSegment
 	fruit     Fruit
@@ -103,23 +118,22 @@ func NewGame() *Game {
 		snake: &SnakeSegment{
 			Position{10, 10}, nil,
 		},
-		fruit:     Fruit{Position{0, 0}},
+		fruit:     Fruit{Position{int32(RandomInt(0, MapSize)), int32(RandomInt(0, MapSize))}},
 		direction: Left,
 		extend:    false,
 	}
 
-	for {
+	for game.snake.CollidesWith(game.fruit.position) {
 		game.fruit.position.x = int32(RandomInt(0, MapSize))
 		game.fruit.position.y = int32(RandomInt(0, MapSize))
-
-		if !game.snake.CollidesWith(game.fruit.position) {
-			break
-		}
 	}
 
 	return &game
 }
 
+// FIXME: U-turns can happen when pressing first a valid direction, then an invalid one
+// e.g. if the snake is facing RIGTH, and before the update UP and LEFT are pressed in
+// that order, the snake will u-turn
 func (g *Game) Input() {
 	if rl.IsKeyDown(rl.KeyRight) && g.direction != Left {
 		g.direction = Right
@@ -162,16 +176,13 @@ func (g *Game) Update() {
 		return
 	}
 
+	// FIXME: Next fruit spawns a frame AFTER the previous is eaten
 	if g.snake.CollidesWith(g.fruit.position) {
 		g.extend = true
 
-		for {
+		for g.snake.CollidesWith(g.fruit.position) {
 			g.fruit.position.x = int32(RandomInt(0, MapSize))
 			g.fruit.position.y = int32(RandomInt(0, MapSize))
-
-			if !g.snake.CollidesWith(g.fruit.position) {
-				break
-			}
 		}
 	}
 
@@ -184,9 +195,9 @@ func (g *Game) Draw() {
 
 	rl.BeginDrawing()
 	rl.ClearBackground(rl.Black)
-	rl.DrawFPS(winWidth-120, 10)
-	g.snake.Draw()
+	// rl.DrawFPS(winWidth-120, 10)
 	g.fruit.Draw()
+	g.snake.Draw()
 	rl.EndDrawing()
 }
 
